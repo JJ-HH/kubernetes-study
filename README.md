@@ -6,4 +6,4 @@
   - nginx.conf
   - reverse proxy
   - socket
-  - githubustercontent /blob/
+  - githubusercontent /blob/
