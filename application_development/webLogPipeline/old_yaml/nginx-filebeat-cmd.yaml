@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-configmap
+  labels:
+    app: nginx-filebeat
+data:
+  filebeat.yml: |
+    filebeat:
+      config:
+        modules:
+          path: /usr/share/filebeat/modules.d/*.yml
+          reload:
+            enabled: true
+      modules:
+      - module: nginx
+        access:
+          var.paths: ["/var/log/nginx/access.log*"]
+        error:
+          var.paths: ["/var/log/nginx/error.log*"]
+    output:
+      elasticsearch:
+        hosts: ["10.96.0.1:9200"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-filebeat
+  labels:
+    app: nginx-filebeat
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: nginx-filebeat
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-filebeat
+  labels:
+    app: nginx-filebeat
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-filebeat
+  template:
+    metadata:
+      labels:
+        app: nginx-filebeat
+    spec:
+      containers:
+      - image: nginx
+        name: wl-nginx
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log/nginx
+      - image: docker.elastic.co/beats/filebeat:7.14.1
+        name: wl-filebeat
+        command: ["/bin/sh"] 
+        args: ["-c", "cp /usr/share/filebeat/modules.d/nginx.yml.disabled /usr/share/filebeat/modules.d/nginx.yml"]
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log/nginx
+        - name: filebeat-config
+          mountPath: /usr/share/filebeat/filebeat.yml
+          subPath: filebeat.yml
+      volumes:
+      - name: varlog
+        emptyDir: {}
+      - name: filebeat-config
+        configMap:
+          name: filebeat-configmap
+          items:
+          - key: filebeat.yml
+            path: filebeat.yml  

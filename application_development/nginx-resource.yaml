@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: nginx-resource
+  name: nginx-resource
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-resource
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: nginx-resource
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+        resources: {
+          requests: {cpu: "1m", memory: "200Mi"},
+          limits: {cpu: "2m", memory: "400Mi"}
+          }
+        ports: 
+        - containerPort: 80
+status: {}
