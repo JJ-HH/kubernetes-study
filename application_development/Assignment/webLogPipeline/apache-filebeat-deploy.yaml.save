@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-configmap
+  labels:
+    app: nginx-filebeat
+data:
+  filebeat.yml: |
+    filebeat:
+      config:
+        modules:
+          path: /usr/share/filebeat/modules.d/*.yml
+          reload:
+            enabled: true
+      modules:
+      - module: apache
+        access:
+          var.paths: ["/var/log/apache/access.log*"]
+        error:
+          var.paths: ["/var/log/apache/error.log*"]
+    output.elasticsearch:
+        hosts: ["10.110.91.85:9200"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-filebeat
+  labels:
+    app: nginx-filebeat
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: apache-filebeat
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apache-filebeat
+  labels:
+    app: apache-filebeat
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: apache-filebeat
+  template:
+    metadata:
+      labels:
+        app: apache-filebeat
+    spec:
+      terminationGracePeriodSeconds: 15
+      containers:
+      - image: apache
+        name: wl-apache
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log/apache2
+      - image: docker.elastic.co/beats/filebeat:7.14.1
+        name: wl-filebeat
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log/apache2
+        - name: filebeat-config
+          mountPath: /usr/share/filebeat/filebeat.yml
+          subPath: filebeat.yml
+      volumes:
+      - name: varlog
+        emptyDir: {}
+      - name: filebeat-config
+        configMap:
+          name: filebeat-configmap
+          items:
+          - key: filebeat.yml
+            path: filebeat.yml  

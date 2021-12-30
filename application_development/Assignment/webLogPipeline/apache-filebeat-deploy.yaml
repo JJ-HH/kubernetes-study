@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: filebeat-configmap
   labels:
-    app: nginx-filebeat
+    app: apache-filebeat
 data:
   filebeat.yml: |
     filebeat:
@@ -13,55 +13,55 @@ data:
           reload:
             enabled: true
       modules:
-      - module: nginx
+      - module: apache
         access:
-          var.paths: ["/var/log/nginx/access.log*"]
+          var.paths: ["/var/log/apache2/access.log*"]
         error:
-          var.paths: ["/var/log/nginx/error.log*"]
+          var.paths: ["/var/log/apache2/error.log*"]
     output.elasticsearch:
         hosts: ["10.110.91.85:9200"]
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx-filebeat
+  name: apache-filebeat
   labels:
-    app: nginx-filebeat
+    app: apache-filebeat
 spec:
   ports:
   - port: 80
   selector:
-    app: nginx-filebeat
+    app: apache-filebeat
   type: NodePort
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-filebeat
+  name: apache-filebeat
   labels:
-    app: nginx-filebeat
+    app: apache-filebeat
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: nginx-filebeat
+      app: apache-filebeat
   template:
     metadata:
       labels:
-        app: nginx-filebeat
+        app: apache-filebeat
     spec:
       terminationGracePeriodSeconds: 15
       containers:
-      - image: nginx
-        name: wl-nginx
+      - image: ubuntu/apache2
+        name: wl-apache
         volumeMounts:
         - name: varlog
-          mountPath: /var/log/nginx
-      - image: docker.elastic.co/beats/filebeat:7.16.2
+          mountPath: /var/log/apache2
+      - image: docker.elastic.co/beats/filebeat:7.14.1
         name: wl-filebeat
         volumeMounts:
         - name: varlog
-          mountPath: /var/log/nginx
+          mountPath: /var/log/apache2
         - name: filebeat-config
           mountPath: /usr/share/filebeat/filebeat.yml
           subPath: filebeat.yml
